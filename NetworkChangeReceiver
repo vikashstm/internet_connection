@@ -1,0 +1,33 @@
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.net.ConnectivityManager;
+
+public class NetworkChangeReceiver extends BroadcastReceiver {
+
+    @Override
+    public void onReceive(final Context context, final Intent intent) {
+        int status = NetworkUtil.getConnectivityStatus(context);
+
+        switch (status) {
+            case NetworkUtil.NETWORK_STATUS_WIFI:
+                // Wi-Fi connected
+                // Example: Log or notify
+                break;
+            case NetworkUtil.NETWORK_STATUS_MOBILE:
+                // Mobile data connected
+                break;
+            case NetworkUtil.NETWORK_STATUS_NOT_CONNECTED:
+                // No internet
+                break;
+        }
+    }
+}
+
+// register the receiver
+/*IntentFilter filter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+NetworkChangeReceiver networkReceiver = new NetworkChangeReceiver();
+registerReceiver(networkReceiver, filter);*/
+
+// unregister receiver
+unregisterReceiver(networkReceiver);
