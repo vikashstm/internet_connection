@@ -1,0 +1,108 @@
+public class NetworkMonitorService extends Service {
+
+    private ConnectivityManager.NetworkCallback networkCallback;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        registerNetworkCallback();
+        startForeground(1, buildForegroundNotification());
+    }
+
+    private void registerNetworkCallback() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm != null) {
+            NetworkRequest request = new NetworkRequest.Builder().build();
+
+            networkCallback = new ConnectivityManager.NetworkCallback() {
+                @Override
+                public void onAvailable(Network network) {
+                    int status = NetworkUtil.getConnectivityStatus(getApplicationContext());
+                    // Handle connected state
+                    Log.d("NetworkMonitor", "Network available: " + status);
+                }
+
+                @Override
+                public void onLost(Network network) {
+                    // Handle lost network
+                    Log.d("NetworkMonitor", "Network lost");
+                }
+            };
+
+            cm.registerNetworkCallback(request, networkCallback);
+        }
+    }
+
+    private Notification buildForegroundNotification() {
+        NotificationChannel channel = new NotificationChannel("network_channel", "Network Monitor", NotificationManager.IMPORTANCE_LOW);
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        manager.createNotificationChannel(channel);
+
+        return new Notification.Builder(this, "network_channel")
+                .setContentTitle("Monitoring Network")
+                .setContentText("Running in background")
+                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                .build();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (networkCallback != null) {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            cm.unregisterNetworkCallback(networkCallback);
+        }
+    }
+}
+
+
+// implementation in activity
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    ContextCompat.startForegroundService(this, new Intent(this, NetworkMonitorService.class));
+} else {
+    startService(new Intent(this, NetworkMonitorService.class));
+}
+
+//Add to Manifest
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+// his won’t survive device reboots unless you also use BOOT_COMPLETED broadcast. So you can implement like this way.
+public class BootReceiver extends BroadcastReceiver {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(new Intent(context, NetworkMonitorService.class));
+            } else {
+                context.startService(new Intent(context, NetworkMonitorService.class));
+            }
+        }
+    }
+}
+
+<receiver android:name=".BootReceiver">
+    <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED"/>
+    </intent-filter>
+</receiver>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+
+// use more extencive check as per requirement
+private boolean isNetworkEffectivelyConnected(NetworkCapabilities caps) {
+    if (caps == null) return false;
+    boolean ok = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+              && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    return ok && (
+         caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+         caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+         caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+    );
+}
+
+
